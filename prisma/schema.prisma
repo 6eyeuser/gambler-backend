@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" 
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  passwordHash String?
+  status       String       @default("UNVERIFIED")
+  
+  authProvider AuthProvider @default(LOCAL)
+  googleId     String?      @unique
+  otpCode      String?
+  otpExpiry    DateTime?
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  wallets      Wallet[]
+  sportsBets   SportsBet[]
+  plinkoBets   PlinkoBet[]
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String
+  currency  String
+  balance   Float    @default(0.0)
+  version   Int      @default(1)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, currency])
+}
+
+model SportsMatch {
+  id             String      @id @default(uuid())
+  sportKey       String      // e.g., "soccer_epl", "basketball_nba", "mma_mixed_martial_arts"
+  sportGroup     String      // "Football", "Basketball", "UFC"
+  teamA          String      // Home Team / Fighter A
+  teamB          String      // Away Team / Fighter B
+  startTime      DateTime
+  status         String      @default("UPCOMING") // UPCOMING, LIVE, COMPLETED
+  winningOutcome String?     // TEAM_A, TEAM_B, or DRAW (Needed for auto-settlement)
+  
+  // Current Dynamic Odds
+  oddsA          Float
+  oddsB          Float
+  oddsDraw       Float?      
+  
+  // Liability Tracking
+  totalPoolA     Float       @default(0)
+  totalPoolB     Float       @default(0)
+  totalPoolDraw  Float       @default(0)
+  
+  bets           SportsBet[]
+}
+
+model SportsBet {
+  id         String      @id @default(uuid())
+  userId     String
+  matchId    String
+  amount     Float
+  guess      String      // "TEAM_A", "TEAM_B", or "DRAW"
+  lockedOdds Float       // The exact odds at the moment the bet was placed
+  status     String      @default("PENDING") // PENDING, WON, LOST, REFUNDED
+  createdAt  DateTime    @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  match      SportsMatch @relation(fields: [matchId], references: [id])
+}
+
+model PlinkoBet {
+  id         String   @id @default(uuid())
+  userId     String
+  amount     Float
+  multiplier Float
+  payout     Float
+  path       String[] // Added back: Required for the frontend to animate the ball correctly
+  status     String   @default("PENDING") // PENDING, COMPLETED, REFUNDED
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id])
+}
