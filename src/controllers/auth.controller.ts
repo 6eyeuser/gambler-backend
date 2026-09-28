@@ -6,12 +6,11 @@ import nodemailer from "nodemailer";
 import prisma from "../config/db";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_gambler_jwt_key_2026";
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://gambler-frontend-steel.vercel.app";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
-// Update: Dynamically route the callback to your live Railway domain
-const BACKEND_URL = process.env.BACKEND_URL || "https://gambler-backend-production-b2fe.up.railway.app";
+const BACKEND_URL = "https://gambler-backend-production-b2fe.up.railway.app";
 const REDIRECT_URI = `${BACKEND_URL}/api/v1/auth/google/callback`;
 
 export const register = async (req: Request, res: Response) => {
@@ -67,7 +66,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
     });
 
     const token = jwt.sign({ userId: updatedUser.id, email: updatedUser.email }, JWT_SECRET, { expiresIn: "7d" });
-    res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+    
+    // FIXED: sameSite "none" + secure true for cross-origin cookies
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: "none", 
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
 
     res.status(200).json({ message: "Verification successful!" });
   } catch (error) {
@@ -87,7 +93,14 @@ export const login = async (req: Request, res: Response) => {
     if (user.status !== "VERIFIED") return res.status(403).json({ message: "Please verify your account first." });
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
-    res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+    
+    // FIXED: sameSite "none" + secure true for cross-origin cookies
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: "none", 
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
 
     res.status(200).json({ message: "Logged in successfully." });
   } catch (error) {
@@ -133,7 +146,14 @@ export const googleCallback = async (req: Request, res: Response) => {
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
-    res.cookie("token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000 });
+    
+    // FIXED: sameSite "none" + secure true for cross-origin cookies
+    res.cookie("token", token, { 
+      httpOnly: true, 
+      secure: true, 
+      sameSite: "none", 
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
 
     res.redirect(`${FRONTEND_URL}/dashboard`);
   } catch (error: any) {
@@ -142,6 +162,6 @@ export const googleCallback = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie("token", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" });
+  res.clearCookie("token", { httpOnly: true, secure: true, sameSite: "none" });
   res.status(200).json({ message: "Logged out successfully" });
 };
