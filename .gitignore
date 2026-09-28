@@ -3,3 +3,8 @@ node_modules
 .env
 
 /generated/prisma
+# Editor & AI folders
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
