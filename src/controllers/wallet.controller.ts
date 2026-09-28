@@ -12,17 +12,22 @@ export class WalletController {
   static async deposit(req: Request, res: Response): Promise<any> {
     try {
       const userId = (req as any).user.userId;
-      const { amount, currency = "USD" } = req.body;
+      const { amount, currency = "INR" } = req.body;
 
-      if (amount <= 0) return res.status(400).json({ message: "Invalid amount." });
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount." });
+      }
 
-      const updatedWallet = await prisma.wallet.update({
+      // Use upsert to automatically create the wallet if it doesn't exist yet
+      const updatedWallet = await prisma.wallet.upsert({
         where: { userId_currency: { userId, currency } },
-        data: { balance: { increment: amount } },
+        update: { balance: { increment: amount } },
+        create: { userId, currency, balance: amount },
       });
 
       return res.status(200).json({ message: "Deposit successful.", data: updatedWallet });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Deposit error:", error);
       return res.status(500).json({ message: "Server error during deposit." });
     }
   }
@@ -32,7 +37,9 @@ export class WalletController {
       const userId = (req as any).user.userId;
       const { amount, currency = "USD" } = req.body;
 
-      if (amount <= 0) return res.status(400).json({ message: "Invalid amount." });
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount." });
+      }
 
       const wallet = await prisma.wallet.findUnique({
         where: { userId_currency: { userId, currency } },
@@ -48,12 +55,13 @@ export class WalletController {
       });
 
       return res.status(200).json({ message: "Withdrawal successful.", data: updatedWallet });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Withdrawal error:", error);
       return res.status(500).json({ message: "Server error during withdrawal." });
     }
   }
 
-  // --- NEW RAZORPAY METHODS ---
+  // --- RAZORPAY METHODS ---
 
   static async createRazorpayOrder(req: Request, res: Response): Promise<any> {
     try {
@@ -64,8 +72,8 @@ export class WalletController {
       }
 
       const options = {
-        amount: Math.round(amount * 100), // Convert to smallest currency unit (paise/cents)
-        currency: "INR", // Change to "USD" if your Razorpay dashboard supports multi-currency
+        amount: Math.round(amount * 100), // Convert to paise
+        currency: "INR",
         receipt: `receipt_${Date.now()}`,
       };
 
@@ -80,7 +88,7 @@ export class WalletController {
   static async verifyRazorpayPayment(req: Request, res: Response): Promise<any> {
     try {
       const userId = (req as any).user.userId;
-      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, currency = "USD" } = req.body;
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount, currency = "INR" } = req.body;
 
       const body = razorpay_order_id + "|" + razorpay_payment_id;
       const expectedSignature = crypto
