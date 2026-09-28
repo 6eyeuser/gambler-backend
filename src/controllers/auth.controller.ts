@@ -67,7 +67,6 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: updatedUser.id, email: updatedUser.email }, JWT_SECRET, { expiresIn: "7d" });
     
-    // FIXED: sameSite "none" + secure true for cross-origin cookies
     res.cookie("token", token, { 
       httpOnly: true, 
       secure: true, 
@@ -75,7 +74,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 
     });
 
-    res.status(200).json({ message: "Verification successful!" });
+    // STEP 3: Return token in JSON body as fallback storage mechanism
+    res.status(200).json({ message: "Verification successful!", token });
   } catch (error) {
     res.status(500).json({ message: "Server error during verification." });
   }
@@ -94,7 +94,6 @@ export const login = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
     
-    // FIXED: sameSite "none" + secure true for cross-origin cookies
     res.cookie("token", token, { 
       httpOnly: true, 
       secure: true, 
@@ -102,7 +101,8 @@ export const login = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 
     });
 
-    res.status(200).json({ message: "Logged in successfully." });
+    // STEP 3: Return token in JSON body as fallback storage mechanism
+    res.status(200).json({ message: "Logged in successfully.", token });
   } catch (error) {
     res.status(500).json({ message: "Server error during login." });
   }
@@ -147,7 +147,6 @@ export const googleCallback = async (req: Request, res: Response) => {
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
     
-    // FIXED: sameSite "none" + secure true for cross-origin cookies
     res.cookie("token", token, { 
       httpOnly: true, 
       secure: true, 
@@ -155,7 +154,8 @@ export const googleCallback = async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 
     });
 
-    res.redirect(`${FRONTEND_URL}/dashboard`);
+    // STEP 3: Pass token as query parameter so frontend can capture and cache it
+    res.redirect(`${FRONTEND_URL}/dashboard?token=${token}`);
   } catch (error: any) {
     res.redirect(`${FRONTEND_URL}/auth?error=GoogleAuthFailed`);
   }
@@ -163,5 +163,8 @@ export const googleCallback = async (req: Request, res: Response) => {
 
 export const logout = (req: Request, res: Response) => {
   res.clearCookie("token", { httpOnly: true, secure: true, sameSite: "none" });
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("token");
+  }
   res.status(200).json({ message: "Logged out successfully" });
 };
